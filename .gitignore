@@ -1,0 +1,14 @@
+t/sanity.t.new
+start.sh
+tmon.out
+t/servroot/
+Makefile
+pm_to_blib
+blib/
+MANIFEST.bak
+Makefile.old
+*.swp
+*~
+*.t_
+*.tar.gz
+reindex
