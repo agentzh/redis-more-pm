@@ -12,10 +12,11 @@ use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
 
 our @EXPORT_OK = qw(
     safe_print
-    safe_read
+    read_response
     build_query
     connect
     parse_resp
+    do_command
 );
 
 our $Timeout = 1;
@@ -136,27 +137,52 @@ sub _do_print ($$) {
     # impossible to reach here...
 }
 
-sub safe_read ($$$$) {
+sub do_command ($$) {
+    my ($sock, $args) = @_;
+    my $query = build_query($args);
+    my ($res, $err) = safe_print($sock, $query, $Timeout);
+    if (!defined $res) {
+        die "Failed to send command: $err\n";
+    }
+
+    ($res, $err) = read_response($sock, my $resp, $Timeout);
+    if (!defined $res) {
+        die "Failed to read response: $err\n";
+    }
+
+    return $res;
+}
+
+sub read_response ($$$) {
     my $sock = shift;
     my $timeout = pop;
-    my $len = pop;
     my $buf = \$_[0];
 
     my $sel = IO::Select->new($sock);
     my $ctx = {
-        rest => $len,
         buf => $buf,
         offset => 0,
     };
 
     while (($sock) = $sel->can_read($timeout)) {
         my $res = _do_read($sock, $ctx);
+
+        #warn "_do_read: $res, buf: [", $$buf, "]\n";
+
         if (!defined $res) {
             # an error occurred
-            return (0, $ctx->{err});
+            return (undef, $ctx->{err});
         }
-        next if $res == -1;
-        return ($res);
+        #next if $res == -1;
+        #return ($res);
+
+        #warn "already read: [",  $$buf, "]\n";
+        my $resp = parse_resp($$buf);
+        if (defined $resp) {
+            return $resp;
+        }
+
+        #warn "wanting more data...\n";
     }
 
     return (undef, "timed out ($timeout sec)");
@@ -165,37 +191,28 @@ sub safe_read ($$$$) {
 sub _do_read ($$) {
     my ($sock, $ctx) = @_;
 
-    while (1) {
-        my $bytes = sysread($sock, ${ $ctx->{buf} }, 1024 * 4, $ctx->{offset});
+    my $bytes = sysread($sock, ${ $ctx->{buf} }, 1024 * 4, $ctx->{offset});
 
-        if (!defined $bytes) {
-            if ($! == EAGAIN) {
-                #warn "read again...";
-                #sleep 0.002;
-                return -1;
-            }
-            $ctx->{err} = "500 read failed: $!";
-            return undef;
+    if (!defined $bytes) {
+        if ($! == EAGAIN) {
+            #warn "read again...";
+            #sleep 0.002;
+            return -1;
         }
-
-        if ($bytes == 0) {
-            # connection closed
-
-            if ($ctx->{rest} > 0) {
-                $ctx->{err} = "response truncated, $ctx->{buf_size} remaining, $ctx->{offset} read";
-                return undef;
-            }
-
-            return 1;
-        }
-
-        $ctx->{offset} += $bytes;
-        $ctx->{rest} -= $bytes;
-        #warn "read $bytes ($read_buf) bytes.\n";
+        $ctx->{err} = "500 read failed: $!";
+        return undef;
     }
 
-    # impossible to reach here...
-    return undef;
+    if ($bytes == 0) {
+        # connection closed
+
+        $ctx->{err} = "response truncated, $ctx->{buf_size} remaining, $ctx->{offset} read";
+        return undef;
+    }
+
+    $ctx->{offset} += $bytes;
+
+    return 1;
 }
 
 sub connect ($$) {

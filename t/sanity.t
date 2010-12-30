@@ -24,7 +24,7 @@ is parse_resp("\$3\r\ns"), undef;
 is parse_resp("\$3\r\nse"), undef;
 is parse_resp("\$3\r\nset"), undef;
 is parse_resp("\$3\r\nset\r"), undef;
-warn "HERE";
+
 is parse_resp("\$3\r\nset\r\n"), "\$3\r\nset\r\n";
 is parse_resp("\$3\r\ns\r\n\r\n"), "\$3\r\ns\r\n\r\n";
 is parse_resp("\$3\r\ns\r\n\r\n"), "\$3\r\ns\r\n\r\n";
