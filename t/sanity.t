@@ -2,7 +2,7 @@ use strict;
 use Test::More 'no_plan';
 
 use lib 'lib';
-use Anadis::Util qw(build_query parse_resp);
+use Redis::More qw(build_query parse_resp);
 
 my $req = build_query(['set', 'foo', 'hello, world']);
 is $req, "*3\r\n\$3\r\nset\r\n\$3\r\nfoo\r\n\$12\r\nhello, world\r\n";

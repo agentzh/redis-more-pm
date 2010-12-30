@@ -1,4 +1,4 @@
-package Anadis::Util;
+package Redis::More;
 
 use strict;
 use warnings;

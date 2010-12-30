@@ -4,7 +4,7 @@ use warnings;
 use Test::More 'no_plan';
 
 use lib 'lib';
-use Anadis::Util qw(connect do_command);
+use Redis::More qw(connect do_command);
 
 #my $port = 6379;
 my $port = 1234;
